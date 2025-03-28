@@ -1,0 +1,26 @@
+version: '3'
+services:
+  # dynui-db:
+  #   image: mysql:8
+  #   container_name: gapi-db
+  #   environment:
+  #     - MYSQL_ROOT_PASSWORD=123456
+  #     - MYSQL_DATABASE=gapi_db
+  #   ports:
+  #     - "3307:3306"
+  #   volumes:
+  #     - /home/user-cd/gapi/data:/var/lib/mysql
+  #   restart: unless-stopped
+  #   networks:
+  #     - gapi-network
+
+  dynui:
+    build: .
+    image: dynui:0.1
+    container_name: dynui
+    environment:
+      - BASE_URL=http://192.168.3.17:7890
+      - DATABASE_URL=mysql://root:123456@192.168.3.17:3306/dynui_db
+    ports:
+      - "7890:7890"
+    restart: unless-stopped

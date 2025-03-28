@@ -1,3 +1,4 @@
+import { message } from 'antd';
 import { NextResponse } from "next/server";
 import { createTask, updateTask } from "@/lib/db";
 import { extractTsx, generateTaskId } from "@/lib/utils";
@@ -36,51 +37,11 @@ async function generateComponentsInBackground(
   taskType: string
 ) {
   try {
+    console.log("开始生成组件...")
     const sys_prompt = `你是一个优秀的前端工程师，你将仔细的思考需求并毫无保留的回答提出的问题。`;
-    const message = `严格遵循以下要求生成React组件代码：
-  # React 组件代码生成要求
-  
-  ## 输入参数规范
-  
-  1. 任务描述 (taskDesc)：
-    - 类型：string (自然语言)
-    - 示例："预定一个今晚飞往成都的机票"
-  2. 任务类型 (taskType)：
-    - 类型：枚举值 ：
-      1. CONFIRM_INFORMATION //信息确认模式
-      2. LACK_INFORMATION //信息补全模式
-    - 约束：必须严格匹配上述枚举值。
-  3. 任务数据 (taskData)：
-    - 类型： 
-      1. Object : {field: value}  // 确认模式
-      2. Array  : [field1, ...]   // 补全模式
-    - 格式规则：
-      - 对象模式：字段需符合JSON Schema规范
-      - 数组模式：元素应为字符串类型字段名
-    - 示例：
-      - CONFIRM_INFORMATION 模式：
-        - taskData = { "name": "张三", "age": 18 }
-      - LACK_INFORMATION 模式：
-        - taskData = [ "name", "age" ]
 
-
-  ## 任务类型
-  
-  任务类型分为以下两类：
-  - CONFIRM_INFORMATION (确认信息):
-    - <taskData>包含已有数据，用户需在界面上确认其有效性。
-    - 生成的组件默认填充<taskData>，并以可编辑的形式展示。
-  - LACK_INFORMATION (补充信息):
-    - <taskData> 为缺失字段，用户需通过输入并提交完整信息。
-    - 如果 <taskDesc> 中包含隐含信息，则相关字段应预填默认值。例如：
-      - <taskDesc>："帮我预定一张飞往成都的机票"
-      - 默认值：destination 预填为 "成都"。
-  
-  ## 处理流程
-  1. 根据任务类型确定是否默认填充<taskData>。
-  2. 根据任务描述和任务数据生成符合要求的React组件代码。
-
-  ## 组件开发规范
+    const commonPrompt = `
+    ## 组件开发规范
   1. 技术栈：
     - 使用 TypeScript 和 React 18+ 语法。
     - 必须从 react 和 antd 包中导入必要的模块。
@@ -107,7 +68,6 @@ async function generateComponentsInBackground(
     - 提交后应显示成功提示或加载状态
 
   ## 用户体验要求
-
   1. 布局整洁，间距合理
   2. 添加适当的说明文本和错误提示
   3. 所有控件有明确的中文标签和占位文本
@@ -115,9 +75,7 @@ async function generateComponentsInBackground(
   5. 提供清晰的提交按钮
 
   # 输出格式
-
   严格按照以下代码块结构生成代码（仅包含一个文件）：
-
   \`\`\`tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { Form, Input, Button, /* 其他用到的antd组件 */ } from 'antd';
@@ -127,29 +85,61 @@ export default function GeneratedComponent() {
 }
   \`\`\`
 
-  ## 注意事项
-
+  ** 注意事项 **
   1. 确保代码语法完全正确，无错误和警告
   2. 不要添加任何说明性注释或文档
   3. 所有UI文本必须使用中文
   4. 确保表单数据在提交前经过验证
-  5. 表单必须包含所有<taskData>中要求的字段
+  5. 表单必须包含所有<taskData>中要求的字段,且字段名和值完全一致，不得篡改或遗漏。
+  6. 不要篡改数据,不要漏数据！！！
+  7. 不要篡改数据,不要漏数据！！！
+  8. 不要篡改数据,不要漏数据！！！
+    `
 
-  # 任务内容
+    //类型为确认信息的prompt
+    const confirmPrompt = `
+      根据任务内容严格遵循以下要求生成React组件代码：
 
-  以下为此次任务的具体内容：
+      ## 输入
+      1. 任务描述（taskDesc）为：${taskDesc}
+      2. 任务数据（taskData）为：${JSON.stringify(taskData)}
 
-  1. 任务描述：${taskDesc}
-  2. 任务类型：${taskType}
-  3. 任务数据：${taskData}
+      ## 要求
+      - 根据任务数据，自动规划合适的前端组件用于展示这些信息，并将任务数据作为初始值。
+      - 禁止添加不存在任务数据中的字段和值
+      - 禁止篡改任务数据中的字段和值
 
-`;
+      ${commonPrompt}
+      
+    `
+
+    //类型为信息补全信息的prompt
+    const lackPrompt = `
+      根据任务内容严格遵循以下要求生成React组件代码：
+
+      ## 输入
+      1. 任务描述（taskDesc）为：${taskDesc}
+      2. 任务数据（taskData）为：${taskData}
+
+      ## 要求
+      - 根据任务描述和任务数据提供的缺失的字段名，自动规划合适的前端组件用于收集缺失的信息。
+      - 禁止添加不存在任务数据中的字段和值
+      - 禁止篡改任务数据中的字段和值
+
+      ${commonPrompt}
+    `
+
+    const message = (taskType=="CONFIRM_INFORMATION"?confirmPrompt:lackPrompt);
+
+
     await updateTask({
       taskId,
       status: "PROCESSING",
     });
     const code = await ai_gen(message, sys_prompt);
     const generatedCode = extractTsx(code);
+
+    console.log(generatedCode)
 
     await updateTask({
       taskId, 
