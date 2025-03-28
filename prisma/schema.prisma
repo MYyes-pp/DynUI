@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Task {
+  id               String         @id @default(uuid())
+  taskDesc         String         @db.Text
+  taskType         TaskType
+  taskData         Json           
+  callbackURL      String
+  uiUrl            String
+  status           TaskStatus     @default(PENDING)
+  generatedCode    String?        @db.Text
+  submissions      DataSubmission[]
+  createdAt DateTime @default(now()) @db.DateTime(6)
+  updatedAt DateTime @updatedAt @db.DateTime(6)
+
+  @@index([status])
+}
+
+model DataSubmission {
+  id             String     @id @default(uuid())
+  task           Task       @relation(fields: [taskId], references: [id],onDelete: Cascade)
+  taskId         String
+  submittedData  Json       // 用户提交的数据
+  createdAt DateTime @default(now()) @db.DateTime(6)
+  updatedAt DateTime @updatedAt @db.DateTime(6)
+
+  @@index([taskId])
+}
+
+
+enum TaskStatus {
+  PENDING     // 任务创建初始状态
+  PROCESSING  // AI生成中
+  READY       // 可访问状态
+  COMPLETED   // 数据提交完成
+  FAILED      // 生成失败
+}
+
+enum TaskType {
+  CONFIRM_INFORMATION  // 确认信息 生成Code展示TaskData用于用户确认
+  LACK_INFORMATION // 缺少信息 生成Code用于用户补充缺少的信息
+}
