@@ -2,9 +2,7 @@ import CodeRenderer from "@/app/components/CodeRenderer";
 
 export default async function UIPage({
   params,
-}: {
-  params: { taskId: string };
-}) {
+}:any) {
   const { taskId } = await params;
 
   // 将数据传递给客户端组件
