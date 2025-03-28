@@ -19,8 +19,8 @@ services:
     image: dynui:0.1
     container_name: dynui
     environment:
-      - BASE_URL=http://192.168.3.17:7890
+      - BASE_URL=http://192.168.3.17:7899
       - DATABASE_URL=mysql://root:123456@192.168.3.17:3306/dynui_db
     ports:
-      - "7890:7890"
+      - "7899:7899"
     restart: unless-stopped
